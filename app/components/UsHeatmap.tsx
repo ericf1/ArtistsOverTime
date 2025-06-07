@@ -28,9 +28,6 @@ export default function UsHeatmap() {
   const [currentMonth, setCurrentMonth] = useState(startMonthStr);
   const [currentArtist, setCurrentArtist] = useState("taylor-swift");
   const [isPlaying, setIsPlaying] = useState(false);
-  const [monthlyData, setMonthlyData] = useState<
-    Record<string, Record<string, Record<string, number>>>
-  >({});
 
   // Artists configuration
   const artists: Record<string, ArtistData> = {
@@ -113,14 +110,19 @@ export default function UsHeatmap() {
           const csvFile = `/data/${artistKey}/${month}.csv`;
 
           try {
-            const rows = await d3.csv(csvFile, (d: { [x: string]: any }) => ({
-              name: (d["DMA"] ?? "")
-                .trim()
-                .toLowerCase()
-                .replace(/[,-]/g, " ")
-                .replace(/\s+/g, " ")
-                .trim(),
-              score: +(d[artists[artistKey].name] ?? 0),
+            const rows = await d3.csv(csvFile, (d: Record<string, string>) => ({
+              name:
+                typeof d["DMA"] === "string"
+                  ? d["DMA"]
+                      .trim()
+                      .toLowerCase()
+                      .replace(/[,-]/g, " ")
+                      .replace(/\s+/g, " ")
+                      .trim()
+                  : "",
+              score: d[artists[artistKey].name]
+                ? Number(d[artists[artistKey].name])
+                : 0,
             }));
 
             rows.forEach((d) => {
@@ -130,6 +132,10 @@ export default function UsHeatmap() {
             });
           } catch (error) {
             // Generate synthetic data
+            console.warn(
+              `Failed to load data for ${artistKey} in ${month}:`,
+              error
+            );
             allData = generate_synthetic_data(
               artistKey,
               month,
@@ -152,7 +158,6 @@ export default function UsHeatmap() {
       }
 
       const allData = await loadMonthlyData();
-      setMonthlyData(allData);
 
       // Clear any existing content
       svg.selectAll("*").remove();
